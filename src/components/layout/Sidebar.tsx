@@ -66,15 +66,15 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
       roles: ['gerente', 'financeiro', 'admin', 'diretoria'] as const,
     },
     {
+      title: 'Meu Perfil',
+      icon: Users,
+      href: '/perfil',
+      roles: ['usuario', 'gerente', 'financeiro', 'admin', 'diretoria'] as const,
+    },
+    {
       title: 'Usuários',
       icon: Users,
       href: '/admin/usuarios',
-      roles: ['admin'] as const,
-    },
-    {
-      title: 'Departamentos',
-      icon: Building2,
-      href: '/admin/departamentos',
       roles: ['admin'] as const,
     },
     {
