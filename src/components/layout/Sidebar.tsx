@@ -15,6 +15,7 @@ import {
   ChevronRight,
   BarChart3,
   Receipt,
+  Shield,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -75,6 +76,12 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
       title: 'Usuários',
       icon: Users,
       href: '/admin/usuarios',
+      roles: ['admin'] as const,
+    },
+    {
+      title: 'Logs de Auditoria',
+      icon: Shield,
+      href: '/admin/logs',
       roles: ['admin'] as const,
     },
     {
