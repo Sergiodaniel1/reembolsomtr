@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { sendEmailNotification } from '@/lib/email-notifications';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,9 +40,7 @@ import {
   XCircle,
   MessageSquare,
   Loader2,
-  Eye,
   Clock,
-  FileText,
   Filter,
 } from 'lucide-react';
 import { ReimbursementRequest, EXPENSE_TYPE_LABELS, Profile } from '@/types/reimbursement';
@@ -154,6 +153,26 @@ export default function ManagerApprovalPage() {
         .insert(historyData);
 
       if (historyError) throw historyError;
+
+      // Send email notification
+      const request = requests.find(r => r.id === requestId);
+      if (request?.profiles) {
+        const actionMap = {
+          approve: 'approved_by_manager',
+          reject: 'rejected_by_manager',
+          adjust: 'adjustment_requested',
+        };
+        
+        await sendEmailNotification({
+          recipientEmail: request.profiles.email,
+          recipientName: request.profiles.full_name,
+          templateType: actionMap[action],
+          requestTitle: request.title,
+          requestAmount: Number(request.amount),
+          requestId: request.id,
+          comment,
+        });
+      }
     },
     onSuccess: (_, variables) => {
       const actionLabel = 
