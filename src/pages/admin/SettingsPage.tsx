@@ -45,7 +45,8 @@ import {
   Pencil,
   Trash2,
   Loader2,
-  Save
+  Save,
+  Sliders
 } from 'lucide-react';
 import { 
   CostCenter, 
@@ -61,6 +62,13 @@ import {
 interface Department {
   id: string;
   name: string;
+  description: string | null;
+}
+
+interface SystemSetting {
+  id: string;
+  key: string;
+  value: Record<string, unknown>;
   description: string | null;
 }
 
@@ -91,6 +99,15 @@ export default function SettingsPage() {
   });
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
+  // System Settings
+  const [systemSettings, setSystemSettings] = useState<SystemSetting[]>([]);
+  const [settingsForm, setSettingsForm] = useState({
+    max_reimbursement_amount: 10000,
+    require_receipt: true,
+    auto_approve_below: 0,
+    session_timeout_minutes: 30,
+  });
+
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -100,15 +117,39 @@ export default function SettingsPage() {
   async function fetchData() {
     setLoading(true);
     try {
-      const [costCentersRes, departmentsRes, templatesRes] = await Promise.all([
+      const [costCentersRes, departmentsRes, templatesRes, settingsRes] = await Promise.all([
         supabase.from('cost_centers').select('*').order('code'),
         supabase.from('departments').select('*').order('name'),
         supabase.from('email_templates').select('*').order('trigger_status'),
+        supabase.from('system_settings').select('*').order('key'),
       ]);
 
       if (costCentersRes.data) setCostCenters(costCentersRes.data);
       if (departmentsRes.data) setDepartments(departmentsRes.data);
       if (templatesRes.data) setEmailTemplates(templatesRes.data as EmailTemplate[]);
+      if (settingsRes.data) {
+        const settingsData = settingsRes.data as Array<{
+          id: string;
+          key: string;
+          value: Record<string, unknown>;
+          description: string | null;
+        }>;
+        setSystemSettings(settingsData);
+        // Parse settings into form
+        const settings: Record<string, number | boolean> = {};
+        settingsData.forEach(s => {
+          const val = s.value as Record<string, unknown>;
+          if (val && 'value' in val) {
+            settings[s.key] = val.value as number | boolean;
+          }
+        });
+        setSettingsForm({
+          max_reimbursement_amount: (settings.max_reimbursement_amount as number) || 10000,
+          require_receipt: (settings.require_receipt as boolean) ?? true,
+          auto_approve_below: (settings.auto_approve_below as number) || 0,
+          session_timeout_minutes: (settings.session_timeout_minutes as number) || 30,
+        });
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -239,6 +280,34 @@ export default function SettingsPage() {
     }
   }
 
+  // System Settings functions
+  async function handleSaveSystemSettings() {
+    setSaving(true);
+    try {
+      const updates = [
+        { key: 'max_reimbursement_amount', value: { value: settingsForm.max_reimbursement_amount } },
+        { key: 'require_receipt', value: { value: settingsForm.require_receipt } },
+        { key: 'auto_approve_below', value: { value: settingsForm.auto_approve_below } },
+        { key: 'session_timeout_minutes', value: { value: settingsForm.session_timeout_minutes } },
+      ];
+
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('system_settings')
+          .update({ value: update.value })
+          .eq('key', update.key);
+        if (error) throw error;
+      }
+
+      toast({ title: 'Configurações salvas com sucesso!' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -255,8 +324,12 @@ export default function SettingsPage() {
         icon={Settings}
       />
 
-      <Tabs defaultValue="cost-centers" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+      <Tabs defaultValue="system" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsTrigger value="system" className="gap-2">
+            <Sliders className="h-4 w-4" />
+            <span className="hidden sm:inline">Sistema</span>
+          </TabsTrigger>
           <TabsTrigger value="cost-centers" className="gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Centros de Custo</span>
@@ -271,9 +344,79 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="workflow" className="gap-2">
             <Workflow className="h-4 w-4" />
-            <span className="hidden sm:inline">Fluxo de Aprovação</span>
+            <span className="hidden sm:inline">Fluxo</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* System Settings Tab */}
+        <TabsContent value="system">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações do Sistema</CardTitle>
+              <CardDescription>Defina os parâmetros gerais do sistema de reembolso</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="max_amount">Valor Máximo por Reembolso (R$)</Label>
+                  <Input
+                    id="max_amount"
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={settingsForm.max_reimbursement_amount}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, max_reimbursement_amount: parseFloat(e.target.value) || 0 })}
+                  />
+                  <p className="text-xs text-muted-foreground">Limite máximo para cada solicitação de reembolso</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="auto_approve">Aprovação Automática até (R$)</Label>
+                  <Input
+                    id="auto_approve"
+                    type="number"
+                    min="0"
+                    step="10"
+                    value={settingsForm.auto_approve_below}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, auto_approve_below: parseFloat(e.target.value) || 0 })}
+                  />
+                  <p className="text-xs text-muted-foreground">Valores abaixo deste limite são aprovados automaticamente (0 = desativado)</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="timeout">Timeout de Sessão (minutos)</Label>
+                  <Input
+                    id="timeout"
+                    type="number"
+                    min="5"
+                    max="480"
+                    value={settingsForm.session_timeout_minutes}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, session_timeout_minutes: parseInt(e.target.value) || 30 })}
+                  />
+                  <p className="text-xs text-muted-foreground">Tempo de inatividade para logout automático</p>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-lg border">
+                  <div className="space-y-1">
+                    <Label>Exigir Comprovante</Label>
+                    <p className="text-xs text-muted-foreground">Solicitar upload de comprovante para todas as despesas</p>
+                  </div>
+                  <Switch
+                    checked={settingsForm.require_receipt}
+                    onCheckedChange={(checked) => setSettingsForm({ ...settingsForm, require_receipt: checked })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={handleSaveSystemSettings} disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  Salvar Configurações
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Cost Centers Tab */}
         <TabsContent value="cost-centers">
@@ -662,7 +805,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Fluxo de Aprovação</CardTitle>
-              <CardDescription>Visualize e configure o fluxo de aprovação de reembolsos</CardDescription>
+              <CardDescription>Visualize o fluxo de aprovação de reembolsos</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
