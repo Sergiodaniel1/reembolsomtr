@@ -4,12 +4,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { cn } from '@/lib/utils';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { SessionTimeoutWarning } from '@/components/session/SessionTimeoutWarning';
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showWarning, extendSession } = useSessionTimeout();
 
   // Redirect to login if not authenticated
   React.useEffect(() => {
@@ -45,6 +48,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <SessionTimeoutWarning open={showWarning} onExtend={extendSession} />
     </div>
   );
 }

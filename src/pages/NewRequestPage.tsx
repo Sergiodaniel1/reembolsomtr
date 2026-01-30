@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Send } from 'lucide-react';
 import { ExpenseType, EXPENSE_TYPE_LABELS, CostCenter } from '@/types/reimbursement';
+import { ReceiptUpload } from '@/components/receipts/ReceiptUpload';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -31,6 +32,7 @@ export default function NewRequestPage() {
   const queryClient = useQueryClient();
   const [loading, setLoading] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [receiptUrls, setReceiptUrls] = React.useState<string[]>([]);
   const [form, setForm] = React.useState({
     title: '', expense_type: '', amount: '', expense_date: '', description: '', cost_center_id: '',
   });
@@ -63,6 +65,7 @@ export default function NewRequestPage() {
         expense_date: form.expense_date,
         description: form.description || null,
         cost_center_id: form.cost_center_id || null,
+        receipt_urls: receiptUrls,
         status: asDraft ? 'rascunho' : 'enviado',
         submitted_at: asDraft ? null : new Date().toISOString(),
       });
@@ -135,6 +138,14 @@ export default function NewRequestPage() {
           <div className="space-y-2">
             <Label>Descrição</Label>
             <Textarea placeholder="Descreva os detalhes da despesa..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Comprovantes</Label>
+            <ReceiptUpload
+              receiptUrls={receiptUrls}
+              onReceiptsChange={setReceiptUrls}
+            />
           </div>
 
           <div className="flex gap-3 pt-4">
