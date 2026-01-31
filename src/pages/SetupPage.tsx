@@ -89,16 +89,14 @@ export default function SetupPage() {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Wait a moment for the trigger to create the profile
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait a moment for the trigger to create the profile and default user role
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // Add admin role
+        // Update the default user role to admin (trigger creates 'usuario' role)
         const { error: roleError } = await supabase
           .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: 'admin',
-          });
+          .update({ role: 'admin' })
+          .eq('user_id', authData.user.id);
 
         if (roleError) throw roleError;
 
