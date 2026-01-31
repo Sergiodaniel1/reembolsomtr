@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Receipt, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { Receipt, Mail, Lock, User, Loader2, Settings } from 'lucide-react';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -31,10 +32,25 @@ export default function AuthPage() {
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({ fullName: '', email: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
   
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Check if admin exists
+  useEffect(() => {
+    async function checkAdmin() {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('id')
+        .eq('role', 'admin')
+        .limit(1);
+      
+      setHasAdmin(data && data.length > 0);
+    }
+    checkAdmin();
+  }, []);
 
   // Redirect if already logged in
   React.useEffect(() => {
@@ -199,10 +215,20 @@ export default function AuthPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-3">
               <p className="text-sm text-muted-foreground">
                 Não possui acesso? Entre em contato com o administrador do sistema.
               </p>
+              
+              {hasAdmin === false && (
+                <Link 
+                  to="/setup" 
+                  className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                >
+                  <Settings className="h-4 w-4" />
+                  Configuração Inicial do Sistema
+                </Link>
+              )}
             </div>
           </CardContent>
         </Card>
