@@ -58,9 +58,13 @@ interface AuditLog {
 const ACTION_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   user_created: { label: 'Usuário Criado', variant: 'default' },
   user_updated: { label: 'Usuário Atualizado', variant: 'secondary' },
+  user_activated: { label: 'Usuário Ativado', variant: 'default' },
   user_deactivated: { label: 'Usuário Desativado', variant: 'destructive' },
   role_assigned: { label: 'Cargo Atribuído', variant: 'default' },
+  role_changed: { label: 'Cargo Alterado', variant: 'secondary' },
   role_removed: { label: 'Cargo Removido', variant: 'destructive' },
+  manager_changed: { label: 'Gerente Alterado', variant: 'secondary' },
+  department_changed: { label: 'Departamento Alterado', variant: 'secondary' },
   login: { label: 'Login', variant: 'outline' },
   logout: { label: 'Logout', variant: 'outline' },
   reimbursement_created: { label: 'Reembolso Criado', variant: 'default' },
@@ -71,6 +75,8 @@ const ACTION_LABELS: Record<string, { label: string; variant: 'default' | 'secon
   rejected_by_finance: { label: 'Reprovado (Financeiro)', variant: 'destructive' },
   marked_as_paid: { label: 'Marcado como Pago', variant: 'default' },
   adjustment_requested: { label: 'Ajuste Solicitado', variant: 'secondary' },
+  settings_created: { label: 'Configuração Criada', variant: 'default' },
+  settings_changed: { label: 'Configuração Alterada', variant: 'secondary' },
   config_updated: { label: 'Configuração Atualizada', variant: 'secondary' },
 };
 

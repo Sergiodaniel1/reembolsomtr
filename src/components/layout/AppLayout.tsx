@@ -9,17 +9,23 @@ import { SessionTimeoutWarning } from '@/components/session/SessionTimeoutWarnin
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { user, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { showWarning, extendSession } = useSessionTimeout();
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated or if user is inactive
   React.useEffect(() => {
     if (!loading && !user) {
       navigate('/auth', { replace: true });
     }
-  }, [user, loading, navigate]);
+    
+    // Check if user is inactive
+    if (!loading && profile && !profile.active) {
+      signOut();
+      navigate('/auth', { replace: true });
+    }
+  }, [user, profile, loading, navigate, signOut]);
 
   if (loading) {
     return (

@@ -285,17 +285,20 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const updates = [
-        { key: 'max_reimbursement_amount', value: { value: settingsForm.max_reimbursement_amount } },
-        { key: 'require_receipt', value: { value: settingsForm.require_receipt } },
-        { key: 'auto_approve_below', value: { value: settingsForm.auto_approve_below } },
-        { key: 'session_timeout_minutes', value: { value: settingsForm.session_timeout_minutes } },
+        { key: 'max_reimbursement_amount', value: { value: settingsForm.max_reimbursement_amount }, description: 'Valor máximo permitido por reembolso' },
+        { key: 'require_receipt', value: { value: settingsForm.require_receipt }, description: 'Exigir comprovante anexado' },
+        { key: 'auto_approve_below', value: { value: settingsForm.auto_approve_below }, description: 'Aprovar automaticamente abaixo deste valor (0 = desativado)' },
+        { key: 'session_timeout_minutes', value: { value: settingsForm.session_timeout_minutes }, description: 'Tempo de inatividade para logout automático (minutos)' },
       ];
 
       for (const update of updates) {
         const { error } = await supabase
           .from('system_settings')
-          .update({ value: update.value })
-          .eq('key', update.key);
+          .upsert({ 
+            key: update.key, 
+            value: update.value,
+            description: update.description 
+          }, { onConflict: 'key' });
         if (error) throw error;
       }
 
