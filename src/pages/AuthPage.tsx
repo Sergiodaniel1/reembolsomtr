@@ -93,6 +93,27 @@ export default function AuthPage() {
           });
         }
       } else {
+        // Check if user is active
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('active')
+            .eq('user_id', userData.user.id)
+            .single();
+          
+          if (profileData && !profileData.active) {
+            // User is inactive - sign out and show error
+            await supabase.auth.signOut();
+            toast({
+              title: 'Acesso bloqueado',
+              description: 'Sua conta está desativada. Entre em contato com o administrador.',
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
+        
         toast({
           title: 'Bem-vindo!',
           description: 'Login realizado com sucesso.',

@@ -52,13 +52,13 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
       title: 'Aprovar Solicitações',
       icon: CheckCircle,
       href: '/aprovar',
-      roles: ['gerente'] as const,
+      roles: ['gerente', 'admin'] as const,
     },
     {
       title: 'Financeiro',
       icon: DollarSign,
       href: '/financeiro',
-      roles: ['financeiro'] as const,
+      roles: ['financeiro', 'admin'] as const,
     },
     {
       title: 'Relatórios',
