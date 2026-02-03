@@ -504,14 +504,14 @@ export default function UsersPage() {
               <div className="space-y-2">
                 <Label>Departamento</Label>
                 <Select
-                  value={userForm.department_id}
-                  onValueChange={(value) => setUserForm({ ...userForm, department_id: value })}
+                  value={userForm.department_id || "none"}
+                  onValueChange={(value) => setUserForm({ ...userForm, department_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {departments.map(dept => (
                       <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                     ))}
@@ -522,14 +522,14 @@ export default function UsersPage() {
               <div className="space-y-2">
                 <Label>Gerente Responsável</Label>
                 <Select
-                  value={userForm.manager_id}
-                  onValueChange={(value) => setUserForm({ ...userForm, manager_id: value })}
+                  value={userForm.manager_id || "none"}
+                  onValueChange={(value) => setUserForm({ ...userForm, manager_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {managers.filter(m => m.id !== editingUser?.id).map(manager => (
                       <SelectItem key={manager.id} value={manager.id}>{manager.full_name}</SelectItem>
                     ))}
