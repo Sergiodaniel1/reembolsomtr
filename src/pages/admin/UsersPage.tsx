@@ -43,7 +43,10 @@ import {
   Shield,
   Search,
   UserCheck,
-  UserX
+  UserX,
+  Copy,
+  CheckCircle,
+  Link2
 } from 'lucide-react';
 import { Profile, AppRole, ROLE_LABELS, Department } from '@/types/reimbursement';
 
@@ -66,6 +69,11 @@ export default function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
   const [saving, setSaving] = useState(false);
+  
+  // State for activation link dialog
+  const [activationLinkDialogOpen, setActivationLinkDialogOpen] = useState(false);
+  const [activationLink, setActivationLink] = useState<string | null>(null);
+  const [createdUserEmail, setCreatedUserEmail] = useState<string>('');
 
   const [userForm, setUserForm] = useState({
     full_name: '',
@@ -214,10 +222,18 @@ export default function UsersPage() {
           throw new Error(data?.error || 'Erro ao criar usuário');
         }
 
-        toast({
-          title: 'Convite enviado com sucesso',
-          description: 'O usuário receberá um e-mail para definir sua senha.',
-        });
+        // Show activation link dialog if link was generated
+        if (data.activationLink) {
+          setActivationLink(data.activationLink);
+          setCreatedUserEmail(userForm.email);
+          setDialogOpen(false);
+          setActivationLinkDialogOpen(true);
+        } else {
+          toast({
+            title: 'Usuário criado',
+            description: 'O usuário deverá usar "Esqueci minha senha" para definir sua senha.',
+          });
+        }
       }
 
       setDialogOpen(false);
@@ -562,6 +578,77 @@ export default function UsersPage() {
                   Salvar
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Activation Link Dialog */}
+      <Dialog open={activationLinkDialogOpen} onOpenChange={(open) => {
+        setActivationLinkDialogOpen(open);
+        if (!open) {
+          setActivationLink(null);
+          setCreatedUserEmail('');
+          resetForm();
+          fetchData();
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <CheckCircle className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+            <DialogTitle className="text-center">Usuário Criado com Sucesso!</DialogTitle>
+            <DialogDescription className="text-center">
+              O usuário <strong>{createdUserEmail}</strong> foi criado. Envie o link abaixo para que o usuário defina sua senha.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                Link de Ativação
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  value={activationLink || ''}
+                  readOnly
+                  className="font-mono text-xs"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    if (activationLink) {
+                      navigator.clipboard.writeText(activationLink);
+                      toast({
+                        title: 'Link copiado!',
+                        description: 'O link foi copiado para a área de transferência.',
+                      });
+                    }
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Este link expira em 24 horas. Após esse período, o usuário deverá usar "Esqueci minha senha" para obter um novo link.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => {
+              setActivationLinkDialogOpen(false);
+              setActivationLink(null);
+              setCreatedUserEmail('');
+              resetForm();
+              fetchData();
+            }}>
+              Concluir
             </Button>
           </DialogFooter>
         </DialogContent>
