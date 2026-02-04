@@ -247,9 +247,12 @@ const handler = async (req: Request): Promise<Response> => {
       email: data.email,
     });
 
+    let activationLink = null;
     if (linkError) {
       console.error("Error generating recovery link:", linkError);
       // User was created but link generation failed - they can use forgot password flow
+    } else if (linkData?.properties?.action_link) {
+      activationLink = linkData.properties.action_link;
     }
 
     console.log("User invited successfully:", newUser.user.id);
@@ -257,8 +260,11 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Usuário criado com sucesso. Um e-mail foi enviado para que o usuário defina sua senha.',
+        message: activationLink 
+          ? 'Usuário criado com sucesso. Copie o link de ativação e envie ao usuário.' 
+          : 'Usuário criado. O usuário deverá usar "Esqueci minha senha" para definir sua senha.',
         userId: newUser.user.id,
+        activationLink,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
