@@ -2,10 +2,11 @@ import React, { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, X, FileText, Image as ImageIcon, Loader2, Eye } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { extractReceiptPath } from '@/lib/storage-utils';
+import { ReceiptPreviewItem } from './ReceiptPreviewItem';
 
 interface ReceiptUploadProps {
   receiptUrls: string[];
@@ -74,11 +75,9 @@ export function ReceiptUpload({
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('receipts')
-          .getPublicUrl(fileName);
-
-        newUrls.push(publicUrl);
+        // Store the relative path instead of public URL (bucket is now private)
+        // We'll use this path to generate signed URLs when displaying
+        newUrls.push(fileName);
       }
 
       onReceiptsChange([...receiptUrls, ...newUrls]);
@@ -98,9 +97,9 @@ export function ReceiptUpload({
     }
   }, [user, receiptUrls, onReceiptsChange, maxFiles, toast]);
 
-  const handleRemove = async (urlToRemove: string) => {
-    // Extract file path from URL
-    const path = urlToRemove.split('/receipts/')[1];
+  const handleRemove = async (pathToRemove: string) => {
+    // Extract file path if it's a URL (legacy data) or use as-is
+    const path = extractReceiptPath(pathToRemove) || pathToRemove;
     if (path) {
       try {
         await supabase.storage.from('receipts').remove([path]);
@@ -108,7 +107,7 @@ export function ReceiptUpload({
         console.error('Error removing file:', error);
       }
     }
-    onReceiptsChange(receiptUrls.filter(url => url !== urlToRemove));
+    onReceiptsChange(receiptUrls.filter(url => url !== pathToRemove));
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -130,18 +129,6 @@ export function ReceiptUpload({
     e.preventDefault();
     setDragOver(false);
   }, []);
-
-  const getFileIcon = (url: string) => {
-    if (url.toLowerCase().includes('.pdf')) {
-      return <FileText className="h-8 w-8 text-destructive" />;
-    }
-    return <ImageIcon className="h-8 w-8 text-primary" />;
-  };
-
-  const getFileName = (url: string) => {
-    const parts = url.split('/');
-    return parts[parts.length - 1].substring(0, 20) + '...';
-  };
 
   return (
     <div className="space-y-4">
@@ -188,53 +175,14 @@ export function ReceiptUpload({
       {/* Preview Grid */}
       {receiptUrls.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {receiptUrls.map((url, index) => (
-            <Card key={index} className="relative group overflow-hidden">
-              <div className="aspect-square flex items-center justify-center bg-muted p-2">
-                {url.toLowerCase().includes('.pdf') ? (
-                  <div className="flex flex-col items-center gap-1">
-                    <FileText className="h-10 w-10 text-destructive" />
-                    <span className="text-xs text-muted-foreground truncate max-w-full px-1">
-                      {getFileName(url)}
-                    </span>
-                  </div>
-                ) : (
-                  <img
-                    src={url}
-                    alt={`Comprovante ${index + 1}`}
-                    className="w-full h-full object-cover rounded"
-                  />
-                )}
-              </div>
-              
-              {/* Overlay Actions */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-8 w-8"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(url, '_blank');
-                  }}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                {!disabled && (
-                  <Button
-                    size="icon"
-                    variant="destructive"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemove(url);
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </Card>
+          {receiptUrls.map((receiptPath, index) => (
+            <ReceiptPreviewItem
+              key={index}
+              receiptPath={receiptPath}
+              index={index}
+              disabled={disabled}
+              onRemove={disabled ? undefined : handleRemove}
+            />
           ))}
         </div>
       )}

@@ -74,7 +74,6 @@ export default function UsersPage() {
     manager_id: '',
     active: true,
     roles: [] as AppRole[],
-    password: '',
   });
 
   const allRoles: AppRole[] = ['usuario', 'gerente', 'financeiro', 'admin', 'diretoria'];
@@ -177,9 +176,8 @@ export default function UsersPage() {
 
         toast({ title: 'Usuário atualizado com sucesso' });
       } else {
-        // Create new user via Supabase Admin API (edge function needed)
-        // For now, we'll create using the auth API with a temporary password
-        if (!userForm.email || !userForm.full_name || !userForm.password) {
+        // Create new user via secure edge function (no password required)
+        if (!userForm.email || !userForm.full_name) {
           toast({
             title: 'Erro',
             description: 'Preencha todos os campos obrigatórios',
@@ -189,53 +187,36 @@ export default function UsersPage() {
           return;
         }
 
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: userForm.email,
-          password: userForm.password,
-          options: {
-            data: {
-              full_name: userForm.full_name,
-            },
+        if (userForm.roles.length === 0) {
+          toast({
+            title: 'Erro',
+            description: 'Selecione ao menos um cargo para o usuário',
+            variant: 'destructive',
+          });
+          setSaving(false);
+          return;
+        }
+
+        // Call secure edge function to invite user
+        const { data, error: inviteError } = await supabase.functions.invoke('invite-user', {
+          body: {
+            email: userForm.email,
+            full_name: userForm.full_name,
+            department_id: userForm.department_id || undefined,
+            manager_id: userForm.manager_id || undefined,
+            roles: userForm.roles,
           },
         });
 
-        if (authError) throw authError;
+        if (inviteError) throw inviteError;
 
-        if (authData.user) {
-          // Update profile with additional data
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({
-              department_id: userForm.department_id || null,
-              manager_id: userForm.manager_id || null,
-              active: userForm.active,
-            })
-            .eq('user_id', authData.user.id);
-
-          if (profileError) console.error('Erro ao atualizar perfil:', profileError);
-
-          // Add roles
-          if (userForm.roles.length > 0) {
-            // First delete the default 'usuario' role that was added by trigger
-            await supabase
-              .from('user_roles')
-              .delete()
-              .eq('user_id', authData.user.id);
-
-            const { error: rolesError } = await supabase
-              .from('user_roles')
-              .insert(userForm.roles.map(role => ({
-                user_id: authData.user!.id,
-                role,
-              })));
-            
-            if (rolesError) console.error('Erro ao adicionar cargos:', rolesError);
-          }
+        if (!data?.success) {
+          throw new Error(data?.error || 'Erro ao criar usuário');
         }
 
         toast({
-          title: 'Usuário criado com sucesso',
-          description: 'O usuário pode fazer login com a senha temporária informada.',
+          title: 'Convite enviado com sucesso',
+          description: 'O usuário receberá um e-mail para definir sua senha.',
         });
       }
 
@@ -258,7 +239,6 @@ export default function UsersPage() {
       manager_id: '',
       active: true,
       roles: ['usuario'],
-      password: '',
     });
   }
 
@@ -271,7 +251,6 @@ export default function UsersPage() {
       manager_id: user.manager_id || '',
       active: user.active,
       roles: user.roles.length > 0 ? user.roles : ['usuario'],
-      password: '',
     });
     setDialogOpen(true);
   }
@@ -486,16 +465,9 @@ export default function UsersPage() {
             </div>
 
             {!editingUser && (
-              <div className="space-y-2">
-                <Label>Senha temporária *</Label>
-                <Input
-                  type="password"
-                  value={userForm.password}
-                  onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                  placeholder="Senha de acesso inicial"
-                />
-                <p className="text-xs text-muted-foreground">
-                  O usuário poderá alterar a senha após o primeiro acesso
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Nota:</strong> O usuário receberá um e-mail de convite para definir sua própria senha de forma segura.
                 </p>
               </div>
             )}
