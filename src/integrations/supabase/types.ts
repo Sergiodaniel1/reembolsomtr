@@ -189,6 +189,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       reimbursement_history: {
@@ -370,9 +377,38 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          active: boolean | null
+          full_name: string | null
+          id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          full_name?: string | null
+          id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          full_name?: string | null
+          id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      get_basic_profiles: {
+        Args: never
+        Returns: {
+          active: boolean
+          full_name: string
+          id: string
+          user_id: string
+        }[]
+      }
       get_user_profile: { Args: { _user_id: string }; Returns: string }
       has_any_role: {
         Args: {
@@ -390,6 +426,10 @@ export type Database = {
       }
       is_manager_of_requester: {
         Args: { _request_id: string }
+        Returns: boolean
+      }
+      is_manager_of_user: {
+        Args: { _target_user_id: string }
         Returns: boolean
       }
       log_audit_action: {
