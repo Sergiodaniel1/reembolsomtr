@@ -643,6 +643,7 @@ export default function UsersPage() {
         if (!open) {
           setActivationLink(null);
           setCreatedUserEmail('');
+          setEmailWasSent(false);
           resetForm();
           fetchData();
         }
@@ -650,21 +651,47 @@ export default function UsersPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <div className="flex justify-center mb-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                <CheckCircle className="h-8 w-8 text-primary" />
+              <div className={`flex h-16 w-16 items-center justify-center rounded-full ${emailWasSent ? 'bg-green-100' : 'bg-primary/10'}`}>
+                {emailWasSent ? (
+                  <Mail className="h-8 w-8 text-green-600" />
+                ) : (
+                  <CheckCircle className="h-8 w-8 text-primary" />
+                )}
               </div>
             </div>
             <DialogTitle className="text-center">Usuário Criado com Sucesso!</DialogTitle>
             <DialogDescription className="text-center">
-              O usuário <strong>{createdUserEmail}</strong> foi criado. Envie o link abaixo para que o usuário defina sua senha.
+              {emailWasSent ? (
+                <>
+                  Um e-mail de ativação foi enviado para <strong>{createdUserEmail}</strong>.
+                  <br />
+                  O link também está disponível abaixo caso precise reenviar manualmente.
+                </>
+              ) : (
+                <>
+                  O usuário <strong>{createdUserEmail}</strong> foi criado.
+                  <br />
+                  Envie o link abaixo para que o usuário defina sua senha.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
+
+          {emailWasSent && (
+            <div className="rounded-lg bg-green-50 border border-green-200 p-3 flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-green-800">E-mail enviado com sucesso!</p>
+                <p className="text-sm text-green-700">O usuário receberá as instruções para definir sua senha.</p>
+              </div>
+            </div>
+          )}
           
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Link2 className="h-4 w-4" />
-                Link de Ativação
+                Link de Ativação {emailWasSent && <span className="text-xs text-muted-foreground">(backup)</span>}
               </Label>
               <div className="flex gap-2">
                 <Input
@@ -699,6 +726,7 @@ export default function UsersPage() {
               setActivationLinkDialogOpen(false);
               setActivationLink(null);
               setCreatedUserEmail('');
+              setEmailWasSent(false);
               resetForm();
               fetchData();
             }}>
