@@ -76,6 +76,11 @@ export default function UsersPage() {
   const [activationLinkDialogOpen, setActivationLinkDialogOpen] = useState(false);
   const [activationLink, setActivationLink] = useState<string | null>(null);
   const [createdUserEmail, setCreatedUserEmail] = useState<string>('');
+  
+  // State for delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [userForm, setUserForm] = useState({
     full_name: '',
