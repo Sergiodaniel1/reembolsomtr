@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -248,11 +249,90 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     let activationLink = null;
+    let emailSent = false;
+    let emailError = null;
+
     if (linkError) {
       console.error("Error generating recovery link:", linkError);
       // User was created but link generation failed - they can use forgot password flow
     } else if (linkData?.properties?.action_link) {
       activationLink = linkData.properties.action_link;
+
+      // 8. Send activation email using Resend
+      const resendApiKey = Deno.env.get('RESEND_API_KEY');
+      if (resendApiKey) {
+        try {
+          const resend = new Resend(resendApiKey);
+          
+          const emailHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5; margin: 0; padding: 20px;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 32px; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">
+                    🎉 Bem-vindo ao Sistema de Reembolso!
+                  </h1>
+                </div>
+                
+                <div style="padding: 32px;">
+                  <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+                    Olá <strong>${data.full_name}</strong>,
+                  </p>
+                  
+                  <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
+                    Sua conta foi criada com sucesso! Para acessar o sistema, você precisa definir sua senha clicando no botão abaixo:
+                  </p>
+                  
+                  <div style="text-align: center; margin: 32px 0;">
+                    <a href="${activationLink}" 
+                       style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);">
+                      Definir Minha Senha
+                    </a>
+                  </div>
+                  
+                  <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 24px 0 0; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                    Se o botão não funcionar, copie e cole o link abaixo no seu navegador:
+                  </p>
+                  <p style="color: #3b82f6; font-size: 12px; word-break: break-all; margin: 8px 0 0;">
+                    ${activationLink}
+                  </p>
+                  
+                  <p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0;">
+                    Este link expira em 24 horas. Se você não solicitou esta conta, ignore este e-mail.
+                  </p>
+                </div>
+                
+                <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                  <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                    Sistema de Reembolso Corporativo © ${new Date().getFullYear()}
+                  </p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `;
+
+          const emailResponse = await resend.emails.send({
+            from: 'Sistema de Reembolso <noreply@resend.dev>',
+            to: [data.email],
+            subject: '🔐 Ative sua conta - Sistema de Reembolso',
+            html: emailHtml,
+          });
+
+          console.log("Email sent successfully:", emailResponse);
+          emailSent = true;
+        } catch (err) {
+          console.error("Error sending email:", err);
+          emailError = err instanceof Error ? err.message : 'Unknown error';
+        }
+      } else {
+        console.warn("RESEND_API_KEY not configured - email not sent");
+      }
     }
 
     console.log("User invited successfully:", newUser.user.id);
@@ -260,11 +340,15 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: activationLink 
-          ? 'Usuário criado com sucesso. Copie o link de ativação e envie ao usuário.' 
-          : 'Usuário criado. O usuário deverá usar "Esqueci minha senha" para definir sua senha.',
+        message: emailSent 
+          ? 'Usuário criado e e-mail de ativação enviado com sucesso!' 
+          : activationLink 
+            ? 'Usuário criado. E-mail não pôde ser enviado - copie o link de ativação abaixo.' 
+            : 'Usuário criado. O usuário deverá usar "Esqueci minha senha" para definir sua senha.',
         userId: newUser.user.id,
         activationLink,
+        emailSent,
+        emailError,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
