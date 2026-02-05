@@ -291,6 +291,34 @@ export default function UsersPage() {
     setUserForm({ ...userForm, roles: newRoles });
   }
 
+  function openDeleteDialog(user: UserWithRoles) {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  }
+
+  async function handleDeleteUser() {
+    if (!userToDelete) return;
+    
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: userToDelete.user_id },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao excluir usuário');
+
+      toast({ title: 'Usuário excluído com sucesso' });
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           user.email.toLowerCase().includes(searchTerm.toLowerCase());
