@@ -234,8 +234,16 @@ export default function UsersPage() {
         if (data.activationLink) {
           setActivationLink(data.activationLink);
           setCreatedUserEmail(userForm.email);
+          setEmailWasSent(data.emailSent === true);
           setDialogOpen(false);
           setActivationLinkDialogOpen(true);
+          
+          if (data.emailSent) {
+            toast({
+              title: 'Usuário criado com sucesso!',
+              description: 'E-mail de ativação enviado automaticamente.',
+            });
+          }
         } else {
           toast({
             title: 'Usuário criado',
