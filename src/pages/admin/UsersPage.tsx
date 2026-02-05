@@ -46,7 +46,9 @@ import {
   UserX,
   Copy,
   CheckCircle,
-  Link2
+  Link2,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { Profile, AppRole, ROLE_LABELS, Department } from '@/types/reimbursement';
 
