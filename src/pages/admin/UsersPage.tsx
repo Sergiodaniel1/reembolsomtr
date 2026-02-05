@@ -698,6 +698,63 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-8 w-8 text-destructive" />
+              </div>
+            </div>
+            <DialogTitle className="text-center">Excluir Usuário</DialogTitle>
+            <DialogDescription className="text-center">
+              Tem certeza que deseja excluir o usuário <strong>{userToDelete?.full_name}</strong>?
+              <br />
+              <span className="text-destructive">Esta ação não pode ser desfeita.</span>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="rounded-lg bg-muted/50 p-3">
+            <p className="text-sm text-muted-foreground">
+              Ao excluir este usuário:
+            </p>
+            <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+              <li>Todos os dados do perfil serão removidos</li>
+              <li>Os cargos atribuídos serão removidos</li>
+              <li>O usuário não poderá mais acessar o sistema</li>
+            </ul>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteUser}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir Usuário
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
