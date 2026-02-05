@@ -46,7 +46,9 @@ import {
   UserX,
   Copy,
   CheckCircle,
-  Link2
+  Link2,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { Profile, AppRole, ROLE_LABELS, Department } from '@/types/reimbursement';
 
@@ -74,6 +76,11 @@ export default function UsersPage() {
   const [activationLinkDialogOpen, setActivationLinkDialogOpen] = useState(false);
   const [activationLink, setActivationLink] = useState<string | null>(null);
   const [createdUserEmail, setCreatedUserEmail] = useState<string>('');
+  
+  // State for delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [userForm, setUserForm] = useState({
     full_name: '',
@@ -284,6 +291,34 @@ export default function UsersPage() {
     setUserForm({ ...userForm, roles: newRoles });
   }
 
+  function openDeleteDialog(user: UserWithRoles) {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  }
+
+  async function handleDeleteUser() {
+    if (!userToDelete) return;
+    
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: userToDelete.user_id },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao excluir usuário');
+
+      toast({ title: 'Usuário excluído com sucesso' });
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           user.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -418,13 +453,23 @@ export default function UsersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(user)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(user)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => openDeleteDialog(user)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -649,6 +694,63 @@ export default function UsersPage() {
               fetchData();
             }}>
               Concluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-8 w-8 text-destructive" />
+              </div>
+            </div>
+            <DialogTitle className="text-center">Excluir Usuário</DialogTitle>
+            <DialogDescription className="text-center">
+              Tem certeza que deseja excluir o usuário <strong>{userToDelete?.full_name}</strong>?
+              <br />
+              <span className="text-destructive">Esta ação não pode ser desfeita.</span>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="rounded-lg bg-muted/50 p-3">
+            <p className="text-sm text-muted-foreground">
+              Ao excluir este usuário:
+            </p>
+            <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+              <li>Todos os dados do perfil serão removidos</li>
+              <li>Os cargos atribuídos serão removidos</li>
+              <li>O usuário não poderá mais acessar o sistema</li>
+            </ul>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteUser}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir Usuário
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
