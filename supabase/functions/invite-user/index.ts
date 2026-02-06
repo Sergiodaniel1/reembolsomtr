@@ -243,9 +243,17 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // 7. Generate password reset link so user can set their own password
+    const siteUrl = Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.supabase.co') || '';
+    // Get the app URL from the request origin or fallback
+    const origin = req.headers.get('origin') || req.headers.get('referer')?.replace(/\/+$/, '') || '';
+    const redirectTo = origin ? `${origin}/auth/redefinir-senha` : undefined;
+    
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: data.email,
+      options: {
+        redirectTo,
+      },
     });
 
     let activationLink = null;
