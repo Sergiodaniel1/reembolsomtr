@@ -19,6 +19,7 @@ import UsersPage from "./pages/admin/UsersPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import AccessDeniedPage from "./pages/AccessDeniedPage";
 import SetupPage from "./pages/SetupPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/auth/redefinir-senha" element={<ResetPasswordPage />} />
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/acesso-negado" element={<AccessDeniedPage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
