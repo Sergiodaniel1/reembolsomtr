@@ -48,7 +48,8 @@ import {
   CheckCircle,
   Link2,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { Profile, AppRole, ROLE_LABELS, Department } from '@/types/reimbursement';
 
@@ -82,7 +83,7 @@ export default function UsersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
   const [deleting, setDeleting] = useState(false);
-
+  const [resendingUserId, setResendingUserId] = useState<string | null>(null);
   const [userForm, setUserForm] = useState({
     full_name: '',
     email: '',
@@ -328,6 +329,36 @@ export default function UsersPage() {
     }
   }
 
+  async function handleResendActivation(user: UserWithRoles) {
+    setResendingUserId(user.user_id);
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-activation', {
+        body: { user_id: user.user_id },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao reenviar');
+
+      if (data.activationLink) {
+        setActivationLink(data.activationLink);
+        setCreatedUserEmail(user.email);
+        setEmailWasSent(data.emailSent === true);
+        setActivationLinkDialogOpen(true);
+      }
+
+      toast({
+        title: data.emailSent ? 'E-mail reenviado!' : 'Link gerado',
+        description: data.emailSent
+          ? `E-mail de ativação reenviado para ${user.email}.`
+          : 'O link de ativação foi gerado. Copie e envie ao usuário.',
+      });
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } finally {
+      setResendingUserId(null);
+    }
+  }
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           user.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -467,14 +498,29 @@ export default function UsersPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => openEditDialog(user)}
+                          title="Editar usuário"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleResendActivation(user)}
+                          disabled={resendingUserId === user.user_id}
+                          title="Reenviar e-mail de ativação"
+                        >
+                          {resendingUserId === user.user_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => openDeleteDialog(user)}
+                          title="Excluir usuário"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
