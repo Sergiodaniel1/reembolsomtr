@@ -236,7 +236,13 @@ export default function AuthPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-4 text-center">
+              <Link to="/auth/esqueci-senha" className="text-sm text-primary hover:underline">
+                Esqueci minha senha
+              </Link>
+            </div>
+
+            <div className="mt-4 text-center">
               <p className="text-sm text-muted-foreground">
                 Não possui acesso? Entre em contato com o administrador do sistema.
               </p>
