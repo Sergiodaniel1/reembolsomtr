@@ -50,7 +50,7 @@ export function AppLayout() {
         sidebarOpen ? "md:ml-64" : "md:ml-20"
       )}>
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 p-6 animate-fade-in">
+        <main className="flex-1 p-3 sm:p-6 animate-fade-in">
           <Outlet />
         </main>
       </div>

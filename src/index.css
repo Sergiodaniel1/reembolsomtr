@@ -166,32 +166,32 @@
   }
 
   .status-rascunho {
-    @apply bg-gray-100 text-gray-700;
+    @apply bg-muted text-muted-foreground;
   }
 
   .status-enviado {
-    @apply bg-blue-100 text-blue-700;
+    @apply bg-info/15 text-info;
   }
 
   .status-em_aprovacao_gerente,
   .status-em_aprovacao_financeiro {
-    @apply bg-amber-100 text-amber-700;
+    @apply bg-warning/15 text-warning;
   }
 
   .status-ajuste_solicitado {
-    @apply bg-orange-100 text-orange-700;
+    @apply bg-destructive/15 text-destructive;
   }
 
   .status-aprovado {
-    @apply bg-emerald-100 text-emerald-700;
+    @apply bg-success/15 text-success;
   }
 
   .status-reprovado {
-    @apply bg-red-100 text-red-700;
+    @apply bg-destructive/15 text-destructive;
   }
 
   .status-pago {
-    @apply bg-purple-100 text-purple-700;
+    @apply bg-primary/15 text-primary;
   }
 
   /* Card hover effects */
