@@ -178,6 +178,10 @@ export default function NewRequestPage() {
               receiptUrls={receiptUrls}
               onReceiptsChange={setReceiptUrls}
             />
+            {errors.receipts && <p className="text-sm text-destructive">{errors.receipts}</p>}
+            <p className="text-xs text-muted-foreground">
+              Você pode salvar como rascunho sem comprovante, mas para enviar é obrigatório anexar pelo menos um.
+            </p>
           </div>
 
           <div className="flex gap-3 pt-4">
