@@ -55,6 +55,13 @@ export default function NewRequestPage() {
       return;
     }
 
+    // Require at least one receipt to submit (not for drafts)
+    if (!asDraft && receiptUrls.length === 0) {
+      setErrors(prev => ({ ...prev, receipts: 'Para enviar a solicitação, anexe pelo menos um comprovante.' }));
+      toast({ title: 'Comprovante obrigatório', description: 'Anexe pelo menos um comprovante antes de enviar para aprovação.', variant: 'destructive' });
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.from('reimbursement_requests').insert({
@@ -70,12 +77,37 @@ export default function NewRequestPage() {
         submitted_at: asDraft ? null : new Date().toISOString(),
       });
       if (error) throw error;
+
+      // Record history entry
+      const { data: insertedData } = await supabase
+        .from('reimbursement_requests')
+        .select('id')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (insertedData) {
+        await supabase.from('reimbursement_history').insert({
+          request_id: insertedData.id,
+          user_id: user!.id,
+          action: asDraft ? 'Solicitação criada como rascunho' : 'Solicitação enviada para aprovação',
+          old_status: null,
+          new_status: asDraft ? 'rascunho' : 'enviado',
+        });
+      }
       
       queryClient.invalidateQueries({ queryKey: ['my-requests'] });
-      toast({ title: asDraft ? 'Rascunho salvo!' : 'Solicitação enviada!', description: asDraft ? 'Você pode continuar editando depois.' : 'Aguarde a aprovação do seu gerente.' });
+      queryClient.invalidateQueries({ queryKey: ['reimbursement-requests'] });
+      toast({
+        title: asDraft ? '✅ Rascunho salvo com sucesso!' : '✅ Solicitação enviada!',
+        description: asDraft
+          ? 'Você pode continuar editando e anexar comprovantes depois.'
+          : 'Sua solicitação foi enviada e aguarda aprovação do gerente.',
+      });
       navigate('/minhas-solicitacoes');
     } catch (error: any) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      toast({ title: '❌ Erro ao salvar', description: error.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -146,6 +178,10 @@ export default function NewRequestPage() {
               receiptUrls={receiptUrls}
               onReceiptsChange={setReceiptUrls}
             />
+            {errors.receipts && <p className="text-sm text-destructive">{errors.receipts}</p>}
+            <p className="text-xs text-muted-foreground">
+              Você pode salvar como rascunho sem comprovante, mas para enviar é obrigatório anexar pelo menos um.
+            </p>
           </div>
 
           <div className="flex gap-3 pt-4">

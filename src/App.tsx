@@ -40,66 +40,65 @@ const App = () => (
             <Route path="/acesso-negado" element={<AccessDeniedPage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route element={<AppLayout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/minhas-solicitacoes" element={<MyRequestsPage />} />
-              <Route path="/nova-solicitacao" element={<NewRequestPage />} />
-              <Route path="/perfil" element={<ProfilePage />} />
+              {/* All authenticated users */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute allowedRoles={['usuario', 'gerente', 'financeiro', 'admin', 'diretoria']}>
+                  <DashboardPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/minhas-solicitacoes" element={
+                <ProtectedRoute allowedRoles={['usuario', 'gerente', 'financeiro', 'admin', 'diretoria']}>
+                  <MyRequestsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/nova-solicitacao" element={
+                <ProtectedRoute allowedRoles={['usuario', 'gerente', 'financeiro', 'admin', 'diretoria']}>
+                  <NewRequestPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/perfil" element={
+                <ProtectedRoute allowedRoles={['usuario', 'gerente', 'financeiro', 'admin', 'diretoria']}>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } />
               
               {/* Manager Routes */}
-              <Route 
-                path="/aprovar" 
-                element={
-                  <ProtectedRoute allowedRoles={['gerente', 'admin']}>
-                    <ManagerApprovalPage />
-                  </ProtectedRoute>
-                } 
-              />
+              <Route path="/aprovar" element={
+                <ProtectedRoute allowedRoles={['gerente', 'admin']}>
+                  <ManagerApprovalPage />
+                </ProtectedRoute>
+              } />
               
               {/* Finance Routes */}
-              <Route 
-                path="/financeiro" 
-                element={
-                  <ProtectedRoute allowedRoles={['financeiro', 'admin']}>
-                    <FinancePage />
-                  </ProtectedRoute>
-                } 
-              />
+              <Route path="/financeiro" element={
+                <ProtectedRoute allowedRoles={['financeiro', 'admin']}>
+                  <FinancePage />
+                </ProtectedRoute>
+              } />
               
               {/* Reports Routes */}
-              <Route 
-                path="/relatorios" 
-                element={
-                  <ProtectedRoute allowedRoles={['gerente', 'financeiro', 'admin', 'diretoria']}>
-                    <ReportsPage />
-                  </ProtectedRoute>
-                } 
-              />
+              <Route path="/relatorios" element={
+                <ProtectedRoute allowedRoles={['gerente', 'financeiro', 'admin', 'diretoria']}>
+                  <ReportsPage />
+                </ProtectedRoute>
+              } />
               
               {/* Admin Routes */}
-              <Route 
-                path="/admin/usuarios" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <UsersPage />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/configuracoes" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <SettingsPage />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/logs" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <AuditLogsPage />
-                  </ProtectedRoute>
-                } 
-              />
+              <Route path="/admin/usuarios" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <UsersPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/configuracoes" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <SettingsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/logs" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AuditLogsPage />
+                </ProtectedRoute>
+              } />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
