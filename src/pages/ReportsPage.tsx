@@ -27,14 +27,15 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Badge } from '@/components/ui/badge';
 import {
   BarChart3,
-  Download,
   FileSpreadsheet,
   FileText,
   Loader2,
-  TrendingUp,
   DollarSign,
   Clock,
   CheckCircle,
+  XCircle,
+  CreditCard,
+  Search,
 } from 'lucide-react';
 import { 
   ReimbursementRequest, 
@@ -74,6 +75,8 @@ export default function ReportsPage() {
   );
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch all requests for reports
   const { data: requests = [], isLoading } = useQuery({
@@ -88,7 +91,6 @@ export default function ReportsPage() {
 
       if (error) throw error;
 
-      // Fetch profiles
       const userIds = [...new Set((data || []).map(r => r.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
@@ -104,34 +106,51 @@ export default function ReportsPage() {
     },
   });
 
+  // Unique users for filter
+  const uniqueUsers = useMemo(() => {
+    const map = new Map<string, string>();
+    requests.forEach(r => {
+      if (r.profiles?.user_id && r.profiles?.full_name) {
+        map.set(r.profiles.user_id, r.profiles.full_name);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [requests]);
+
   // Filter requests
   const filteredRequests = useMemo(() => {
     return requests.filter(r => {
       const statusMatch = filterStatus === 'all' || r.status === filterStatus;
       const typeMatch = filterType === 'all' || r.expense_type === filterType;
-      return statusMatch && typeMatch;
+      const userMatch = filterUser === 'all' || r.user_id === filterUser;
+      const searchMatch = !searchTerm || 
+        r.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      return statusMatch && typeMatch && userMatch && searchMatch;
     });
-  }, [requests, filterStatus, filterType]);
+  }, [requests, filterStatus, filterType, filterUser, searchTerm]);
 
   // Calculate statistics
   const stats = useMemo(() => {
     const total = filteredRequests.reduce((sum, r) => sum + Number(r.amount), 0);
-    const approved = filteredRequests
-      .filter(r => ['aprovado', 'pago'].includes(r.status))
-      .reduce((sum, r) => sum + Number(r.amount), 0);
-    const pending = filteredRequests
-      .filter(r => ['enviado', 'em_aprovacao_gerente', 'em_aprovacao_financeiro'].includes(r.status))
-      .reduce((sum, r) => sum + Number(r.amount), 0);
-    const paid = filteredRequests
-      .filter(r => r.status === 'pago')
-      .reduce((sum, r) => sum + Number(r.amount), 0);
+    const pendingList = filteredRequests.filter(r => 
+      ['enviado', 'em_aprovacao_gerente', 'em_aprovacao_financeiro'].includes(r.status)
+    );
+    const approvedList = filteredRequests.filter(r => ['aprovado', 'pago'].includes(r.status));
+    const rejectedList = filteredRequests.filter(r => r.status === 'reprovado');
+    const paidList = filteredRequests.filter(r => r.status === 'pago');
 
     return {
       count: filteredRequests.length,
       total,
-      approved,
-      pending,
-      paid,
+      pendingCount: pendingList.length,
+      pendingAmount: pendingList.reduce((sum, r) => sum + Number(r.amount), 0),
+      approvedCount: approvedList.length,
+      approvedAmount: approvedList.reduce((sum, r) => sum + Number(r.amount), 0),
+      rejectedCount: rejectedList.length,
+      rejectedAmount: rejectedList.reduce((sum, r) => sum + Number(r.amount), 0),
+      paidCount: paidList.length,
+      paidAmount: paidList.reduce((sum, r) => sum + Number(r.amount), 0),
     };
   }, [filteredRequests]);
 
@@ -167,7 +186,7 @@ export default function ReportsPage() {
     }));
   }, [filteredRequests]);
 
-  const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
+  const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))', '#8b5cf6', '#06b6d4', '#f97316'];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -176,17 +195,18 @@ export default function ReportsPage() {
     }).format(value);
   };
 
-  const handleExportExcel = () => {
-    // Create CSV content
-    const headers = ['Título', 'Solicitante', 'Tipo', 'Valor', 'Status', 'Data Despesa', 'Data Criação'];
+  const handleExportCSV = () => {
+    const headers = ['Título', 'Solicitante', 'E-mail', 'Tipo', 'Valor', 'Status', 'Data Despesa', 'Data Criação', 'Data Pagamento'];
     const rows = filteredRequests.map(r => [
       r.title,
       r.profiles?.full_name || '',
+      r.profiles?.email || '',
       EXPENSE_TYPE_LABELS[r.expense_type],
       Number(r.amount).toFixed(2),
       STATUS_LABELS[r.status],
       format(new Date(r.expense_date), 'dd/MM/yyyy'),
       format(new Date(r.created_at), 'dd/MM/yyyy'),
+      r.paid_at ? format(new Date(r.paid_at), 'dd/MM/yyyy') : '',
     ]);
 
     const csvContent = [headers, ...rows]
@@ -215,12 +235,10 @@ export default function ReportsPage() {
         description="Análise e exportação de dados de reembolsos"
         icon={BarChart3}
       >
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportExcel}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Exportar Excel
-          </Button>
-        </div>
+        <Button variant="outline" onClick={handleExportCSV}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          Exportar CSV
+        </Button>
       </PageHeader>
 
       {/* Filters */}
@@ -229,7 +247,19 @@ export default function ReportsPage() {
           <CardTitle className="text-lg">Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="space-y-2">
+              <Label>Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Título ou nome..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>Data Início</Label>
               <Input
@@ -274,12 +304,26 @@ export default function ReportsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Colaborador</Label>
+              <Select value={filterUser} onValueChange={setFilterUser}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {uniqueUsers.map(([userId, name]) => (
+                    <SelectItem key={userId} value={userId}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <StatCard
           title="Total de Solicitações"
           value={stats.count}
@@ -288,21 +332,31 @@ export default function ReportsPage() {
           iconClassName="bg-primary/10 text-primary"
         />
         <StatCard
-          title="Valor Pendente"
-          value={formatCurrency(stats.pending)}
+          title="Pendentes"
+          value={stats.pendingCount}
+          subtitle={formatCurrency(stats.pendingAmount)}
           icon={Clock}
           iconClassName="bg-warning/10 text-warning"
         />
         <StatCard
-          title="Valor Aprovado"
-          value={formatCurrency(stats.approved)}
+          title="Aprovadas"
+          value={stats.approvedCount}
+          subtitle={formatCurrency(stats.approvedAmount)}
           icon={CheckCircle}
           iconClassName="bg-success/10 text-success"
         />
         <StatCard
-          title="Valor Pago"
-          value={formatCurrency(stats.paid)}
-          icon={DollarSign}
+          title="Rejeitadas"
+          value={stats.rejectedCount}
+          subtitle={formatCurrency(stats.rejectedAmount)}
+          icon={XCircle}
+          iconClassName="bg-destructive/10 text-destructive"
+        />
+        <StatCard
+          title="Pagas"
+          value={stats.paidCount}
+          subtitle={formatCurrency(stats.paidAmount)}
+          icon={CreditCard}
           iconClassName="bg-purple-500/10 text-purple-500"
         />
       </div>
@@ -319,16 +373,22 @@ export default function ReportsPage() {
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={statusChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis />
                     <Tooltip 
                       formatter={(value: number, name: string) => 
                         name === 'valor' ? formatCurrency(value) : value
                       }
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--foreground))',
+                      }}
                     />
                     <Legend />
-                    <Bar dataKey="quantidade" name="Quantidade" fill="hsl(var(--primary))" />
+                    <Bar dataKey="quantidade" name="Quantidade" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -364,7 +424,15 @@ export default function ReportsPage() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrency(value)} 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--foreground))',
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -400,7 +468,7 @@ export default function ReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRequests.slice(0, 50).map((request) => (
+                {filteredRequests.slice(0, 100).map((request) => (
                   <TableRow key={request.id}>
                     <TableCell className="font-medium">{request.title}</TableCell>
                     <TableCell>{request.profiles?.full_name}</TableCell>
@@ -433,9 +501,9 @@ export default function ReportsPage() {
               </TableBody>
             </Table>
           </div>
-          {filteredRequests.length > 50 && (
+          {filteredRequests.length > 100 && (
             <p className="text-sm text-muted-foreground mt-4 text-center">
-              Exibindo 50 de {filteredRequests.length} registros. Exporte para ver todos.
+              Exibindo 100 de {filteredRequests.length} registros. Exporte o CSV para ver todos.
             </p>
           )}
         </CardContent>
