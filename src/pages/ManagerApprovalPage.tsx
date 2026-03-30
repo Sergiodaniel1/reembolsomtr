@@ -53,6 +53,7 @@ interface RequestWithProfile extends ReimbursementRequest {
 
 export default function ManagerApprovalPage() {
   const { user, profile, isAdmin } = useAuth();
+  const { getRequestAlerts } = useReimbursementPolicy();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
