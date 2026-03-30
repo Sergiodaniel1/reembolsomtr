@@ -328,6 +328,17 @@ export default function ManagerApprovalPage() {
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={request.status} />
+                        <PolicyAlerts
+                          compact
+                          violations={getRequestAlerts({
+                            expenseType: request.expense_type,
+                            amount: Number(request.amount),
+                            expenseDate: request.expense_date,
+                            receiptCount: (request.receipt_urls || []).length,
+                          })}
+                          className="mt-1"
+                        />
+                      </TableCell>
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
