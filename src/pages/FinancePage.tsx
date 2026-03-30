@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { sendEmailNotification } from '@/lib/email-notifications';
 import { PageHeader } from '@/components/ui/page-header';
+import { PolicyAlerts } from '@/components/policy/PolicyAlerts';
+import { useReimbursementPolicy } from '@/hooks/useReimbursementPolicy';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +48,7 @@ interface RequestWithProfile extends ReimbursementRequest {
 export default function FinancePage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { getRequestAlerts } = useReimbursementPolicy();
   const queryClient = useQueryClient();
 
   const [selectedRequest, setSelectedRequest] = useState<RequestWithProfile | null>(null);
@@ -317,7 +320,19 @@ export default function FinancePage() {
                               <span className="text-sm">{(request.receipt_urls || []).length}</span>
                             </div>
                           </TableCell>
-                          <TableCell><StatusBadge status={request.status} /></TableCell>
+                          <TableCell>
+                            <StatusBadge status={request.status} />
+                            <PolicyAlerts
+                              compact
+                              violations={getRequestAlerts({
+                                expenseType: request.expense_type,
+                                amount: Number(request.amount),
+                                expenseDate: request.expense_date,
+                                receiptCount: (request.receipt_urls || []).length,
+                              })}
+                              className="mt-1"
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1">
                               <Button size="sm" variant="ghost" onClick={() => { setDetailRequest(request); setDetailOpen(true); }}>

@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { sendEmailNotification } from '@/lib/email-notifications';
 import { PageHeader } from '@/components/ui/page-header';
+import { PolicyAlerts } from '@/components/policy/PolicyAlerts';
+import { useReimbursementPolicy } from '@/hooks/useReimbursementPolicy';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +53,7 @@ interface RequestWithProfile extends ReimbursementRequest {
 
 export default function ManagerApprovalPage() {
   const { user, profile, isAdmin } = useAuth();
+  const { getRequestAlerts } = useReimbursementPolicy();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -325,6 +328,16 @@ export default function ManagerApprovalPage() {
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={request.status} />
+                        <PolicyAlerts
+                          compact
+                          violations={getRequestAlerts({
+                            expenseType: request.expense_type,
+                            amount: Number(request.amount),
+                            expenseDate: request.expense_date,
+                            receiptCount: (request.receipt_urls || []).length,
+                          })}
+                          className="mt-1"
+                        />
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
