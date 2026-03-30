@@ -46,8 +46,10 @@ import {
   Trash2,
   Loader2,
   Save,
-  Sliders
+  Sliders,
+  ShieldCheck,
 } from 'lucide-react';
+import { PolicySettingsTab } from '@/components/admin/PolicySettingsTab';
 import { 
   CostCenter, 
   EmailTemplate, 

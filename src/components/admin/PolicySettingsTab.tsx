@@ -81,7 +81,7 @@ export function PolicySettingsTab() {
         .from('system_settings')
         .upsert({
           key: 'reimbursement_policy',
-          value: { value: form },
+          value: { value: form } as any,
           description: 'Política de reembolso configurável',
         }, { onConflict: 'key' });
       if (error) throw error;
