@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { sendEmailNotification } from '@/lib/email-notifications';
 import { PageHeader } from '@/components/ui/page-header';
+import { PolicyAlerts } from '@/components/policy/PolicyAlerts';
+import { useReimbursementPolicy } from '@/hooks/useReimbursementPolicy';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
