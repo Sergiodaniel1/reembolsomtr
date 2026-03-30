@@ -339,7 +339,6 @@ export default function ManagerApprovalPage() {
                           className="mt-1"
                         />
                       </TableCell>
-                      </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
                           <Button size="sm" variant="ghost" onClick={() => { setDetailRequest(request); setDetailOpen(true); }}>
