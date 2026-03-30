@@ -330,10 +330,14 @@ export default function SettingsPage() {
       />
 
       <Tabs defaultValue="system" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
           <TabsTrigger value="system" className="gap-2">
             <Sliders className="h-4 w-4" />
             <span className="hidden sm:inline">Sistema</span>
+          </TabsTrigger>
+          <TabsTrigger value="policy" className="gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Política</span>
           </TabsTrigger>
           <TabsTrigger value="cost-centers" className="gap-2">
             <Building2 className="h-4 w-4" />
@@ -352,6 +356,11 @@ export default function SettingsPage() {
             <span className="hidden sm:inline">Fluxo</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Policy Tab */}
+        <TabsContent value="policy">
+          <PolicySettingsTab />
+        </TabsContent>
 
         {/* System Settings Tab */}
         <TabsContent value="system">
