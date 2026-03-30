@@ -320,7 +320,19 @@ export default function FinancePage() {
                               <span className="text-sm">{(request.receipt_urls || []).length}</span>
                             </div>
                           </TableCell>
-                          <TableCell><StatusBadge status={request.status} /></TableCell>
+                          <TableCell>
+                            <StatusBadge status={request.status} />
+                            <PolicyAlerts
+                              compact
+                              violations={getRequestAlerts({
+                                expenseType: request.expense_type,
+                                amount: Number(request.amount),
+                                expenseDate: request.expense_date,
+                                receiptCount: (request.receipt_urls || []).length,
+                              })}
+                              className="mt-1"
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1">
                               <Button size="sm" variant="ghost" onClick={() => { setDetailRequest(request); setDetailOpen(true); }}>
