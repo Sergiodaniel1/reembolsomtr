@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ReceiptPreviewItem } from '@/components/receipts/ReceiptPreviewItem';
+import { PolicyAlerts } from '@/components/policy/PolicyAlerts';
+import { useReimbursementPolicy } from '@/hooks/useReimbursementPolicy';
 import {
   ReimbursementRequest,
   EXPENSE_TYPE_LABELS,
@@ -19,8 +21,9 @@ import {
   Profile,
   ReimbursementHistory,
   ReimbursementStatus,
+  ExpenseType,
 } from '@/types/reimbursement';
-import { format } from 'date-fns';
+import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   User,
@@ -30,6 +33,9 @@ import {
   Clock,
   Paperclip,
   MessageSquare,
+  CalendarCheck,
+  CreditCard,
+  Timer,
 } from 'lucide-react';
 
 interface RequestDetailDialogProps {
@@ -57,6 +63,8 @@ export function RequestDetailDialog({
   onOpenChange,
   children,
 }: RequestDetailDialogProps) {
+  const { getRequestAlerts } = useReimbursementPolicy();
+
   const { data: history = [], isLoading: historyLoading } = useQuery({
     queryKey: ['request-history', request?.id],
     queryFn: async () => {
@@ -68,7 +76,6 @@ export function RequestDetailDialog({
 
       if (error) throw error;
 
-      // Fetch profiles for history users
       const userIds = [...new Set((data || []).map(h => h.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
@@ -92,6 +99,38 @@ export function RequestDetailDialog({
 
   const receiptUrls = request.receipt_urls || [];
 
+  // Policy alerts
+  const policyAlerts = getRequestAlerts({
+    expenseType: request.expense_type,
+    amount: Number(request.amount),
+    expenseDate: request.expense_date,
+    receiptCount: receiptUrls.length,
+  });
+
+  // Calculate processing times
+  const createdAt = new Date(request.created_at);
+  const submittedAt = request.submitted_at ? new Date(request.submitted_at) : null;
+  const approvedAt = request.approved_at ? new Date(request.approved_at) : null;
+  const paidAt = request.paid_at ? new Date(request.paid_at) : null;
+
+  const getProcessingTime = () => {
+    if (paidAt && submittedAt) {
+      const days = differenceInDays(paidAt, submittedAt);
+      return `${days} dia(s) do envio ao pagamento`;
+    }
+    if (approvedAt && submittedAt) {
+      const days = differenceInDays(approvedAt, submittedAt);
+      return `${days} dia(s) do envio à aprovação`;
+    }
+    if (submittedAt) {
+      const days = differenceInDays(new Date(), submittedAt);
+      return `${days} dia(s) em processamento`;
+    }
+    return null;
+  };
+
+  const processingTime = getProcessingTime();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh]">
@@ -104,6 +143,11 @@ export function RequestDetailDialog({
 
         <ScrollArea className="max-h-[70vh] pr-4">
           <div className="space-y-6">
+            {/* Policy Alerts */}
+            {policyAlerts.length > 0 && (
+              <PolicyAlerts violations={policyAlerts} />
+            )}
+
             {/* Basic Info */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-start gap-2">
@@ -136,6 +180,46 @@ export function RequestDetailDialog({
               </div>
             </div>
 
+            {/* Key Dates */}
+            <Separator />
+            <div className="space-y-2">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <Timer className="h-4 w-4 text-muted-foreground" />
+                Datas do Processo
+              </p>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">Criada:</span>
+                  <span>{format(createdAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                </div>
+                {submittedAt && (
+                  <div className="flex items-center gap-2">
+                    <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Enviada:</span>
+                    <span>{format(submittedAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                  </div>
+                )}
+                {approvedAt && (
+                  <div className="flex items-center gap-2">
+                    <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Aprovada:</span>
+                    <span>{format(approvedAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                  </div>
+                )}
+                {paidAt && (
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Paga:</span>
+                    <span>{format(paidAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                  </div>
+                )}
+              </div>
+              {processingTime && (
+                <p className="text-xs text-muted-foreground italic mt-1">⏱ {processingTime}</p>
+              )}
+            </div>
+
             {/* Description */}
             {request.description && (
               <>
@@ -160,6 +244,19 @@ export function RequestDetailDialog({
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Comentário do Financeiro</p>
                 <p className="text-sm bg-muted rounded-lg p-3">{request.finance_comment}</p>
+              </div>
+            )}
+
+            {/* Payment Info */}
+            {request.payment_method && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Dados do Pagamento</p>
+                <div className="text-sm bg-muted rounded-lg p-3 space-y-1">
+                  <p><span className="text-muted-foreground">Método:</span> {request.payment_method}</p>
+                  {request.payment_date && (
+                    <p><span className="text-muted-foreground">Data:</span> {format(new Date(request.payment_date), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -201,11 +298,9 @@ export function RequestDetailDialog({
                 <div className="space-y-0">
                   {history.map((entry, i) => (
                     <div key={entry.id} className="relative pl-6 pb-4 last:pb-0">
-                      {/* Timeline line */}
                       {i < history.length - 1 && (
                         <div className="absolute left-[9px] top-3 bottom-0 w-px bg-border" />
                       )}
-                      {/* Timeline dot */}
                       <div className="absolute left-0 top-1 h-[18px] w-[18px] rounded-full border-2 border-primary bg-background" />
                       <div>
                         <p className="text-sm font-medium">
@@ -235,7 +330,6 @@ export function RequestDetailDialog({
               )}
             </div>
 
-            {/* Action buttons slot */}
             {children}
           </div>
         </ScrollArea>

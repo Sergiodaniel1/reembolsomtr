@@ -14,6 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Send } from 'lucide-react';
 import { ExpenseType, EXPENSE_TYPE_LABELS, CostCenter } from '@/types/reimbursement';
 import { ReceiptUpload } from '@/components/receipts/ReceiptUpload';
+import { PolicyAlerts } from '@/components/policy/PolicyAlerts';
+import { useReimbursementPolicy } from '@/hooks/useReimbursementPolicy';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -30,6 +32,7 @@ export default function NewRequestPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { policy, validateRequest } = useReimbursementPolicy();
   const [loading, setLoading] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [receiptUrls, setReceiptUrls] = React.useState<string[]>([]);
@@ -45,6 +48,18 @@ export default function NewRequestPage() {
     },
   });
 
+  // Live policy violations for display
+  const liveViolations = React.useMemo(() => {
+    if (!form.expense_type || !form.amount) return [];
+    return validateRequest({
+      expenseType: form.expense_type as ExpenseType,
+      amount: parseFloat(form.amount) || 0,
+      expenseDate: form.expense_date,
+      receiptCount: receiptUrls.length,
+      isDraft: true,
+    });
+  }, [form.expense_type, form.amount, form.expense_date, receiptUrls.length, validateRequest]);
+
   const handleSubmit = async (asDraft: boolean) => {
     setErrors({});
     const parsed = schema.safeParse({ ...form, amount: parseFloat(form.amount) || 0 });
@@ -55,11 +70,24 @@ export default function NewRequestPage() {
       return;
     }
 
-    // Require at least one receipt to submit (not for drafts)
-    if (!asDraft && receiptUrls.length === 0) {
-      setErrors(prev => ({ ...prev, receipts: 'Para enviar a solicitação, anexe pelo menos um comprovante.' }));
-      toast({ title: 'Comprovante obrigatório', description: 'Anexe pelo menos um comprovante antes de enviar para aprovação.', variant: 'destructive' });
-      return;
+    // Policy validation
+    if (!asDraft) {
+      const violations = validateRequest({
+        expenseType: form.expense_type as ExpenseType,
+        amount: parseFloat(form.amount) || 0,
+        expenseDate: form.expense_date,
+        receiptCount: receiptUrls.length,
+        isDraft: false,
+      });
+      const blocks = violations.filter(v => v.type === 'block');
+      if (blocks.length > 0) {
+        toast({
+          title: 'Solicitação bloqueada pela política',
+          description: blocks[0].message,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     setLoading(true);
@@ -78,7 +106,6 @@ export default function NewRequestPage() {
       });
       if (error) throw error;
 
-      // Record history entry
       const { data: insertedData } = await supabase
         .from('reimbursement_requests')
         .select('id')
@@ -171,6 +198,11 @@ export default function NewRequestPage() {
             <Label>Descrição</Label>
             <Textarea placeholder="Descreva os detalhes da despesa..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
+
+          {/* Policy Alerts */}
+          {liveViolations.length > 0 && (
+            <PolicyAlerts violations={liveViolations} />
+          )}
 
           <div className="space-y-2">
             <Label>Comprovantes</Label>
