@@ -48,6 +48,7 @@ interface RequestWithProfile extends ReimbursementRequest {
 export default function FinancePage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { getRequestAlerts } = useReimbursementPolicy();
   const queryClient = useQueryClient();
 
   const [selectedRequest, setSelectedRequest] = useState<RequestWithProfile | null>(null);
