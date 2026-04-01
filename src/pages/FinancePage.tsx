@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { sendEmailNotification } from '@/lib/email-notifications';
+import { transitionWithNotification } from '@/lib/reimbursement-actions';
 import { PageHeader } from '@/components/ui/page-header';
 import { PolicyAlerts } from '@/components/policy/PolicyAlerts';
 import { useReimbursementPolicy } from '@/hooks/useReimbursementPolicy';
@@ -105,57 +105,29 @@ export default function FinancePage() {
 
   const actionMutation = useMutation({
     mutationFn: async ({
-      requestId, action, comment, paymentMethod, paymentDate, oldStatus,
+      requestId, action, comment, paymentMethod, paymentDate,
     }: {
       requestId: string; action: 'approve' | 'reject' | 'pay'; comment: string;
       paymentMethod?: string; paymentDate?: string; oldStatus: ReimbursementStatus;
     }) => {
-      const newStatus = action === 'approve' ? 'aprovado' as const :
-                        action === 'reject' ? 'reprovado' as const : 'pago' as const;
-
-      const updateData: Record<string, any> = {
-        status: newStatus,
-        finance_comment: comment,
+      const rpcActionMap = {
+        approve: 'finance_approve' as const,
+        reject: 'finance_reject' as const,
+        pay: 'mark_paid' as const,
       };
 
-      if (action === 'pay') {
-        updateData.paid_at = new Date().toISOString();
-        updateData.payment_method = paymentMethod;
-        updateData.payment_date = paymentDate;
-      }
-
-      const { error: updateError } = await supabase
-        .from('reimbursement_requests')
-        .update(updateData)
-        .eq('id', requestId);
-      if (updateError) throw updateError;
-
-      const { error: historyError } = await supabase
-        .from('reimbursement_history')
-        .insert({
-          request_id: requestId,
-          user_id: user!.id,
-          action: action === 'approve' ? 'approved_by_finance' :
-                  action === 'reject' ? 'rejected_by_finance' : 'marked_as_paid',
-          old_status: oldStatus,
-          new_status: newStatus,
-          comment,
-        });
-      if (historyError) throw historyError;
-
       const request = requests.find(r => r.id === requestId);
-      if (request?.profiles) {
-        const actionMap = { approve: 'approved_by_finance', reject: 'rejected_by_finance', pay: 'marked_as_paid' };
-        await sendEmailNotification({
-          recipientEmail: request.profiles.email,
-          recipientName: request.profiles.full_name,
-          templateType: actionMap[action],
-          requestTitle: request.title,
-          requestAmount: Number(request.amount),
-          requestId: request.id,
-          comment,
-        });
-      }
+      await transitionWithNotification({
+        requestId,
+        action: rpcActionMap[action],
+        comment: comment || undefined,
+        paymentMethod,
+        paymentDate,
+        recipientEmail: request?.profiles?.email,
+        recipientName: request?.profiles?.full_name,
+        requestTitle: request?.title,
+        requestAmount: request ? Number(request.amount) : undefined,
+      });
     },
     onSuccess: (_, variables) => {
       const label = variables.action === 'approve' ? 'aprovada' :

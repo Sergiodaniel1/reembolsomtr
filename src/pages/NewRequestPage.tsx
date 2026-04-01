@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { transitionRequestStatus } from '@/lib/reimbursement-actions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -92,7 +93,8 @@ export default function NewRequestPage() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('reimbursement_requests').insert({
+      // Always create as draft first
+      const { data: insertedData, error } = await supabase.from('reimbursement_requests').insert({
         user_id: user!.id,
         title: form.title,
         expense_type: form.expense_type as ExpenseType,
@@ -101,26 +103,24 @@ export default function NewRequestPage() {
         description: form.description || null,
         cost_center_id: form.cost_center_id || null,
         receipt_urls: receiptUrls,
-        status: asDraft ? 'rascunho' : 'enviado',
-        submitted_at: asDraft ? null : new Date().toISOString(),
-      });
+        status: 'rascunho',
+      }).select('id').single();
       if (error) throw error;
 
-      const { data: insertedData } = await supabase
-        .from('reimbursement_requests')
-        .select('id')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      // Record creation in history
+      await supabase.from('reimbursement_history').insert({
+        request_id: insertedData.id,
+        user_id: user!.id,
+        action: 'created',
+        old_status: null,
+        new_status: 'rascunho',
+      });
 
-      if (insertedData) {
-        await supabase.from('reimbursement_history').insert({
-          request_id: insertedData.id,
-          user_id: user!.id,
-          action: asDraft ? 'Solicitação criada como rascunho' : 'Solicitação enviada para aprovação',
-          old_status: null,
-          new_status: asDraft ? 'rascunho' : 'enviado',
+      // If not draft, use RPC to submit (ensures consistent audit trail)
+      if (!asDraft) {
+        await transitionRequestStatus({
+          requestId: insertedData.id,
+          action: 'submit',
         });
       }
       

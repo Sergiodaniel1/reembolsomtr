@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { sendEmailNotification } from '@/lib/email-notifications';
+import { transitionWithNotification } from '@/lib/reimbursement-actions';
 import { PageHeader } from '@/components/ui/page-header';
 import { PolicyAlerts } from '@/components/policy/PolicyAlerts';
 import { useReimbursementPolicy } from '@/hooks/useReimbursementPolicy';
@@ -112,53 +112,26 @@ export default function ManagerApprovalPage() {
 
   const actionMutation = useMutation({
     mutationFn: async ({
-      requestId, action, comment, oldStatus,
+      requestId, action, comment,
     }: {
       requestId: string; action: 'approve' | 'reject' | 'adjust'; comment: string; oldStatus: ReimbursementStatus;
     }) => {
-      const statusMap = {
-        approve: 'em_aprovacao_financeiro' as const,
-        reject: 'reprovado' as const,
-        adjust: 'ajuste_solicitado' as const,
+      const rpcActionMap = {
+        approve: 'manager_approve' as const,
+        reject: 'manager_reject' as const,
+        adjust: 'manager_adjust' as const,
       };
-      const newStatus = statusMap[action];
 
-      const { error: updateError } = await supabase
-        .from('reimbursement_requests')
-        .update({
-          status: newStatus,
-          manager_comment: comment,
-        })
-        .eq('id', requestId);
-      if (updateError) throw updateError;
-
-      const { error: historyError } = await supabase
-        .from('reimbursement_history')
-        .insert({
-          request_id: requestId,
-          user_id: user!.id,
-          action: action === 'approve' ? 'approved_by_manager' :
-                  action === 'reject' ? 'rejected_by_manager' : 'adjustment_requested',
-          old_status: oldStatus,
-          new_status: newStatus,
-          comment,
-        });
-      if (historyError) throw historyError;
-
-      // Email notification
       const request = requests.find(r => r.id === requestId);
-      if (request?.profiles) {
-        const actionMap = { approve: 'approved_by_manager', reject: 'rejected_by_manager', adjust: 'adjustment_requested' };
-        await sendEmailNotification({
-          recipientEmail: request.profiles.email,
-          recipientName: request.profiles.full_name,
-          templateType: actionMap[action],
-          requestTitle: request.title,
-          requestAmount: Number(request.amount),
-          requestId: request.id,
-          comment,
-        });
-      }
+      await transitionWithNotification({
+        requestId,
+        action: rpcActionMap[action],
+        comment: comment || undefined,
+        recipientEmail: request?.profiles?.email,
+        recipientName: request?.profiles?.full_name,
+        requestTitle: request?.title,
+        requestAmount: request ? Number(request.amount) : undefined,
+      });
     },
     onSuccess: (_, variables) => {
       const label = variables.action === 'approve' ? 'aprovada' :

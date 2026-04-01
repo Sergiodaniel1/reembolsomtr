@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { checkSetupCompleted } from '@/lib/reimbursement-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,7 +23,6 @@ export default function SetupPage() {
   
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
 
   useEffect(() => {
     checkAdminExists();
@@ -31,19 +30,12 @@ export default function SetupPage() {
 
   async function checkAdminExists() {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('id')
-        .eq('role', 'admin')
-        .limit(1);
-
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        setHasAdmin(true);
-      }
+      const completed = await checkSetupCompleted();
+      setHasAdmin(completed);
     } catch (error) {
       console.error('Error checking admin:', error);
+      // Fail-safe: assume setup completed to prevent unauthorized access
+      setHasAdmin(true);
     } finally {
       setLoading(false);
     }
@@ -53,7 +45,18 @@ export default function SetupPage() {
     e.preventDefault();
     setErrors({});
 
-    // Validation
+    // Double-check setup hasn't been completed meanwhile
+    const completed = await checkSetupCompleted();
+    if (completed) {
+      setHasAdmin(true);
+      toast({
+        title: 'Setup já concluído',
+        description: 'O sistema já possui um administrador configurado.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const newErrors: Record<string, string> = {};
     if (form.fullName.length < 3) {
       newErrors.fullName = 'Nome deve ter pelo menos 3 caracteres';
@@ -61,8 +64,8 @@ export default function SetupPage() {
     if (!form.email.includes('@')) {
       newErrors.email = 'E-mail inválido';
     }
-    if (form.password.length < 6) {
-      newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
+    if (form.password.length < 8) {
+      newErrors.password = 'Senha deve ter pelo menos 8 caracteres';
     }
     if (form.password !== form.confirmPassword) {
       newErrors.confirmPassword = 'As senhas não coincidem';
@@ -75,24 +78,19 @@ export default function SetupPage() {
 
     setCreating(true);
     try {
-      // Create the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: {
-          data: {
-            full_name: form.fullName,
-          },
+          data: { full_name: form.fullName },
         },
       });
 
       if (authError) throw authError;
 
       if (authData.user) {
-        // Wait a moment for the trigger to create the profile and default user role
         await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // Update the default user role to admin (trigger creates 'usuario' role)
         const { error: roleError } = await supabase
           .from('user_roles')
           .update({ role: 'admin' })
@@ -105,15 +103,14 @@ export default function SetupPage() {
           description: 'Você pode agora fazer login com as credenciais criadas.',
         });
 
-        // Sign out and redirect to login
         await supabase.auth.signOut();
         navigate('/auth');
       }
     } catch (error: any) {
       console.error('Error creating admin:', error);
       toast({
-        title: 'Erro',
-        description: error.message,
+        title: 'Erro ao criar administrador',
+        description: error.message || 'Tente novamente.',
         variant: 'destructive',
       });
     } finally {
@@ -139,7 +136,7 @@ export default function SetupPage() {
             </div>
             <CardTitle>Sistema Configurado</CardTitle>
             <CardDescription>
-              O sistema já possui um administrador configurado.
+              O sistema já possui um administrador configurado. Esta página não está mais disponível.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -179,13 +176,7 @@ export default function SetupPage() {
                 <Label htmlFor="fullName">Nome Completo</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="fullName"
-                    placeholder="Nome completo"
-                    className="pl-10"
-                    value={form.fullName}
-                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                  />
+                  <Input id="fullName" placeholder="Nome completo" className="pl-10" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
                 </div>
                 {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
               </div>
@@ -194,14 +185,7 @@ export default function SetupPage() {
                 <Label htmlFor="email">E-mail</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="admin@empresa.com"
-                    className="pl-10"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  />
+                  <Input id="email" type="email" placeholder="admin@empresa.com" className="pl-10" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 </div>
                 {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
               </div>
@@ -210,14 +194,7 @@ export default function SetupPage() {
                 <Label htmlFor="password">Senha</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-10"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  />
+                  <Input id="password" type="password" placeholder="••••••••" className="pl-10" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
                 </div>
                 {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
               </div>
@@ -226,29 +203,16 @@ export default function SetupPage() {
                 <Label htmlFor="confirmPassword">Confirmar Senha</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-10"
-                    value={form.confirmPassword}
-                    onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                  />
+                  <Input id="confirmPassword" type="password" placeholder="••••••••" className="pl-10" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
                 </div>
                 {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
               </div>
 
               <Button type="submit" className="w-full" disabled={creating}>
                 {creating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Criando...
-                  </>
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Criando...</>
                 ) : (
-                  <>
-                    <Shield className="mr-2 h-4 w-4" />
-                    Criar Administrador
-                  </>
+                  <><Shield className="mr-2 h-4 w-4" />Criar Administrador</>
                 )}
               </Button>
             </form>
