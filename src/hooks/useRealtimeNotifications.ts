@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { ReimbursementStatus } from '@/types/reimbursement';
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
@@ -23,11 +22,21 @@ interface Notification {
   requestId: string;
 }
 
+interface TrackedRequest {
+  id: string;
+  status: string;
+  title: string;
+}
+
+const POLL_INTERVAL = 30000; // 30 seconds
+
 export function useRealtimeNotifications() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const previousRequests = useRef<Map<string, TrackedRequest>>(new Map());
+  const initialized = useRef(false);
 
   const markAllRead = useCallback(() => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -44,31 +53,33 @@ export function useRealtimeNotifications() {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel('reimbursement-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'reimbursement_requests',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const oldStatus = (payload.old as any)?.status;
-          const newStatus = (payload.new as any)?.status;
-          const title = (payload.new as any)?.title || 'Solicitação';
+    const checkForUpdates = async () => {
+      const { data, error } = await supabase
+        .from('reimbursement_requests')
+        .select('id, status, title')
+        .eq('user_id', user.id);
 
-          if (oldStatus !== newStatus && newStatus) {
-            const statusLabel = STATUS_LABELS[newStatus] || newStatus;
-            const message = `"${title}" mudou para: ${statusLabel}`;
+      if (error || !data) return;
+
+      const currentMap = new Map<string, TrackedRequest>();
+      for (const req of data) {
+        currentMap.set(req.id, { id: req.id, status: req.status, title: req.title });
+      }
+
+      // Only detect changes after first load
+      if (initialized.current) {
+        for (const [id, current] of currentMap) {
+          const prev = previousRequests.current.get(id);
+          if (prev && prev.status !== current.status) {
+            const statusLabel = STATUS_LABELS[current.status] || current.status;
+            const message = `"${current.title}" mudou para: ${statusLabel}`;
 
             const notification: Notification = {
               id: crypto.randomUUID(),
               message,
               timestamp: new Date(),
               read: false,
-              requestId: (payload.new as any)?.id,
+              requestId: id,
             };
 
             setNotifications(prev => [notification, ...prev].slice(0, 50));
@@ -80,12 +91,16 @@ export function useRealtimeNotifications() {
             });
           }
         }
-      )
-      .subscribe();
+      }
 
-    return () => {
-      supabase.removeChannel(channel);
+      previousRequests.current = currentMap;
+      initialized.current = true;
     };
+
+    checkForUpdates();
+    const interval = setInterval(checkForUpdates, POLL_INTERVAL);
+
+    return () => clearInterval(interval);
   }, [user, toast]);
 
   return { notifications, unreadCount, markAllRead, markRead };
