@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { sendEmailNotification } from '@/lib/email-notifications';
+import { transitionWithNotification } from '@/lib/reimbursement-actions';
 import { PageHeader } from '@/components/ui/page-header';
 import { PolicyAlerts } from '@/components/policy/PolicyAlerts';
 import { useReimbursementPolicy } from '@/hooks/useReimbursementPolicy';
