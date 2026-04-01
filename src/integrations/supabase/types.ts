@@ -400,6 +400,7 @@ export type Database = {
       }
     }
     Functions: {
+      check_setup_completed: { Args: never; Returns: boolean }
       get_basic_profiles: {
         Args: never
         Returns: {
@@ -441,6 +442,16 @@ export type Database = {
           _old_data?: Json
         }
         Returns: string
+      }
+      transition_request_status: {
+        Args: {
+          _action: string
+          _comment?: string
+          _payment_date?: string
+          _payment_method?: string
+          _request_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {
