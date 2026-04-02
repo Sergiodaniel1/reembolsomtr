@@ -113,6 +113,12 @@ export default function MyRequestsPage() {
           )}
         </CardContent>
       </Card>
+
+      <RequestDetailDialog
+        request={selectedRequest}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 }
