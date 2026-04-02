@@ -66,4 +66,16 @@ describe('Route access rules', () => {
     expect(hasAccess(['diretoria'], ROUTE_ROLES['/relatorios'])).toBe(true);
     expect(hasAccess(['diretoria'], ROUTE_ROLES['/admin/usuarios'])).toBe(false);
   });
+
+  it('usuario cannot access report routes', () => {
+    expect(hasAccess(['usuario'], ROUTE_ROLES['/relatorios'])).toBe(false);
+  });
+
+  it('financeiro cannot access manager approval routes', () => {
+    expect(hasAccess(['financeiro'], ROUTE_ROLES['/aprovar'])).toBe(false);
+  });
+
+  it('gerente cannot access finance routes', () => {
+    expect(hasAccess(['gerente'], ROUTE_ROLES['/financeiro'])).toBe(false);
+  });
 });
