@@ -99,7 +99,7 @@ export default function MyRequestsPage() {
               </TableHeader>
               <TableBody>
                 {filteredRequests.map((request) => (
-                  <TableRow key={request.id} className="table-row-hover cursor-pointer" onClick={() => navigate(`/solicitacao/${request.id}`)}>
+                  <TableRow key={request.id} className="table-row-hover cursor-pointer" onClick={() => { setSelectedRequest(request); setDetailOpen(true); }}>
                     <TableCell className="font-medium">{request.title}</TableCell>
                     <TableCell>{EXPENSE_TYPE_LABELS[request.expense_type]}</TableCell>
                     <TableCell>{formatCurrency(Number(request.amount))}</TableCell>
