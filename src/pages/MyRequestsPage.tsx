@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
+import { RequestDetailDialog } from '@/components/requests/RequestDetailDialog';
 import { PlusCircle, Search, Eye } from 'lucide-react';
 import { ReimbursementRequest, STATUS_LABELS, EXPENSE_TYPE_LABELS, ReimbursementStatus } from '@/types/reimbursement';
 import { format } from 'date-fns';
