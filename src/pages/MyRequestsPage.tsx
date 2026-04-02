@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
+import { RequestDetailDialog } from '@/components/requests/RequestDetailDialog';
 import { PlusCircle, Search, Eye } from 'lucide-react';
 import { ReimbursementRequest, STATUS_LABELS, EXPENSE_TYPE_LABELS, ReimbursementStatus } from '@/types/reimbursement';
 import { format } from 'date-fns';
@@ -21,6 +22,8 @@ export default function MyRequestsPage() {
   const { user } = useAuth();
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
+  const [selectedRequest, setSelectedRequest] = React.useState<ReimbursementRequest | null>(null);
+  const [detailOpen, setDetailOpen] = React.useState(false);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['my-requests', user?.id],
@@ -96,7 +99,7 @@ export default function MyRequestsPage() {
               </TableHeader>
               <TableBody>
                 {filteredRequests.map((request) => (
-                  <TableRow key={request.id} className="table-row-hover cursor-pointer" onClick={() => navigate(`/solicitacao/${request.id}`)}>
+                  <TableRow key={request.id} className="table-row-hover cursor-pointer" onClick={() => { setSelectedRequest(request); setDetailOpen(true); }}>
                     <TableCell className="font-medium">{request.title}</TableCell>
                     <TableCell>{EXPENSE_TYPE_LABELS[request.expense_type]}</TableCell>
                     <TableCell>{formatCurrency(Number(request.amount))}</TableCell>
@@ -110,6 +113,12 @@ export default function MyRequestsPage() {
           )}
         </CardContent>
       </Card>
+
+      <RequestDetailDialog
+        request={selectedRequest}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 }

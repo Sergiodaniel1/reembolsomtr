@@ -35,11 +35,12 @@ describe('Status consistency', () => {
 });
 
 describe('Status transition map (expected valid transitions)', () => {
+  // This mirrors the RPC transition_request_status logic
   const VALID_TRANSITIONS: Record<string, string[]> = {
     rascunho: ['enviado'],
-    enviado: ['em_aprovacao_gerente'],
+    enviado: ['em_aprovacao_financeiro', 'reprovado', 'ajuste_solicitado'],
     em_aprovacao_gerente: ['em_aprovacao_financeiro', 'reprovado', 'ajuste_solicitado'],
-    ajuste_solicitado: ['em_aprovacao_gerente', 'rascunho'],
+    ajuste_solicitado: ['enviado'],
     em_aprovacao_financeiro: ['aprovado', 'reprovado'],
     aprovado: ['pago'],
     reprovado: [],
@@ -55,5 +56,50 @@ describe('Status transition map (expected valid transitions)', () => {
     const keys = Object.keys(VALID_TRANSITIONS).sort();
     const expected = Object.keys(STATUS_LABELS).sort();
     expect(keys).toEqual(expected);
+  });
+
+  it('rascunho can only go to enviado', () => {
+    expect(VALID_TRANSITIONS['rascunho']).toEqual(['enviado']);
+  });
+
+  it('aprovado can only go to pago', () => {
+    expect(VALID_TRANSITIONS['aprovado']).toEqual(['pago']);
+  });
+
+  it('ajuste_solicitado goes back to enviado', () => {
+    expect(VALID_TRANSITIONS['ajuste_solicitado']).toEqual(['enviado']);
+  });
+});
+
+describe('RPC action-to-transition mapping', () => {
+  // Maps actions the RPC accepts to expected transitions
+  const ACTION_MAP: Record<string, { from: string[]; to: string }> = {
+    submit: { from: ['rascunho', 'ajuste_solicitado'], to: 'enviado' },
+    manager_approve: { from: ['enviado', 'em_aprovacao_gerente'], to: 'em_aprovacao_financeiro' },
+    manager_reject: { from: ['enviado', 'em_aprovacao_gerente'], to: 'reprovado' },
+    manager_adjust: { from: ['enviado', 'em_aprovacao_gerente'], to: 'ajuste_solicitado' },
+    finance_approve: { from: ['em_aprovacao_financeiro'], to: 'aprovado' },
+    finance_reject: { from: ['em_aprovacao_financeiro'], to: 'reprovado' },
+    mark_paid: { from: ['aprovado'], to: 'pago' },
+  };
+
+  it('all actions produce valid target statuses', () => {
+    const allStatuses = Object.keys(STATUS_LABELS);
+    Object.entries(ACTION_MAP).forEach(([action, { to }]) => {
+      expect(allStatuses).toContain(to);
+    });
+  });
+
+  it('all source statuses are valid statuses', () => {
+    const allStatuses = Object.keys(STATUS_LABELS);
+    Object.entries(ACTION_MAP).forEach(([action, { from }]) => {
+      from.forEach(s => {
+        expect(allStatuses).toContain(s);
+      });
+    });
+  });
+
+  it('covers 7 distinct actions', () => {
+    expect(Object.keys(ACTION_MAP)).toHaveLength(7);
   });
 });

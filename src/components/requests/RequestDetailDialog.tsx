@@ -46,14 +46,14 @@ interface RequestDetailDialogProps {
 }
 
 const HISTORY_ACTION_LABELS: Record<string, string> = {
+  'created': 'Solicitação Criada',
+  'submitted': 'Enviada para Aprovação',
   'approved_by_manager': 'Aprovada pelo Gerente',
   'rejected_by_manager': 'Reprovada pelo Gerente',
   'adjustment_requested': 'Ajuste Solicitado',
   'approved_by_finance': 'Aprovada pelo Financeiro',
   'rejected_by_finance': 'Reprovada pelo Financeiro',
   'marked_as_paid': 'Marcada como Paga',
-  'Solicitação criada como rascunho': 'Criada como Rascunho',
-  'Solicitação enviada para aprovação': 'Enviada para Aprovação',
   'resubmitted_after_adjustment': 'Reenviada após Ajuste',
 };
 
