@@ -21,6 +21,8 @@ export default function MyRequestsPage() {
   const { user } = useAuth();
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
+  const [selectedRequest, setSelectedRequest] = React.useState<ReimbursementRequest | null>(null);
+  const [detailOpen, setDetailOpen] = React.useState(false);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['my-requests', user?.id],
